@@ -1,17 +1,22 @@
+from __future__ import annotations
+
 import re
 import time
+from collections.abc import Mapping, MutableMapping
 from http.server import BaseHTTPRequestHandler
+from types import ModuleType
 from urllib.parse import parse_qs, unquote, urlsplit
 
 from httptools.parser import HttpRequestParser
 
 from .compat import ENCODING, decode_from_bytes, do_the_magic, encode_to_bytes
+from .interfaces import SupportsRead
 from .mocket import Mocket, MocketEntry
 
 try:
     import magic
 except ImportError:
-    magic = None
+    magic: ModuleType | None = None
 
 
 STATUS = {k: v[0] for k, v in BaseHTTPRequestHandler.responses.items()}
@@ -20,10 +25,10 @@ ASCII = "ascii"
 
 
 class Protocol:
-    def __init__(self):
-        self.url = None
-        self.body = None
-        self.headers = {}
+    def __init__(self) -> None:
+        self.url: str | None = None
+        self.body: str | bytes | None = None
+        self.headers: dict[str, str] = {}
 
     def on_header(self, name: bytes, value: bytes):
         self.headers[name.decode(ASCII)] = value.decode(ASCII)
@@ -34,28 +39,28 @@ class Protocol:
         except UnicodeDecodeError:
             self.body = body
 
-    def on_url(self, url: bytes):
+    def on_url(self, url: bytes) -> None:
         self.url = url.decode(ASCII)
 
 
 class Request:
-    _protocol = None
-    _parser = None
+    _protocol: Protocol
+    _parser: HttpRequestParser
 
-    def __init__(self, data):
+    def __init__(self, data) -> None:
         self._protocol = Protocol()
         self._parser = HttpRequestParser(self._protocol)
         self.add_data(data)
 
-    def add_data(self, data):
+    def add_data(self, data) -> None:
         self._parser.feed_data(data)
 
     @property
-    def method(self):
+    def method(self) -> str:
         return self._parser.get_method().decode(ASCII)
 
     @property
-    def path(self):
+    def path(self) -> str | None:
         return self._protocol.url
 
     @property
@@ -76,23 +81,30 @@ class Request:
         return self._protocol.body
 
     def __str__(self):
-        return "{} - {} - {}".format(self.method, self.path, self.headers)
+        return f"{self.method} - {self.path} - {self.headers}"
 
 
 class Response:
-    headers = None
-    is_file_object = False
+    headers: MutableMapping[str, str]
+    is_file_object: bool = False
+    body: bytes
 
-    def __init__(self, body="", status=200, headers=None, lib_magic=magic):
+    def __init__(
+        self,
+        body: SupportsRead | str = "",
+        status: int = 200,
+        headers: MutableMapping[str, str] | None = None,
+        lib_magic=magic,
+    ):
         # needed for testing libmagic import failure
         self.magic = lib_magic
 
         headers = headers or {}
-        try:
+        if isinstance(body, SupportsRead):
             #  File Objects
             self.body = body.read()
             self.is_file_object = True
-        except AttributeError:
+        else:
             self.body = encode_to_bytes(body)
         self.status = status
 
@@ -103,19 +115,17 @@ class Response:
 
         self.data = self.get_protocol_data() + self.body
 
-    def get_protocol_data(self, str_format_fun_name="capitalize"):
-        status_line = "HTTP/1.1 {status_code} {status}".format(
-            status_code=self.status, status=STATUS[self.status]
-        )
+    def get_protocol_data(self, str_format_fun_name: str = "capitalize") -> bytes:
+        status_line = f"HTTP/1.1 {self.status} {STATUS[self.status]}"
         header_lines = CRLF.join(
             (
-                "{0}: {1}".format(getattr(k, str_format_fun_name)(), v)
+                f"{getattr(k, str_format_fun_name)()}: {v}"
                 for k, v in self.headers.items()
             )
         )
-        return "{0}\r\n{1}\r\n\r\n".format(status_line, header_lines).encode(ENCODING)
+        return f"{status_line}\r\n{header_lines}\r\n\r\n".encode(ENCODING)
 
-    def set_base_headers(self):
+    def set_base_headers(self) -> None:
         self.headers = {
             "Status": str(self.status),
             "Date": time.strftime("%a, %d %b %Y %H:%M:%S GMT", time.gmtime()),
@@ -128,7 +138,7 @@ class Response:
         elif self.magic:
             self.headers["Content-Type"] = do_the_magic(self.magic, self.body)
 
-    def set_extra_headers(self, headers):
+    def set_extra_headers(self, headers: MutableMapping[str, str]):
         r"""
         >>> r = Response(body="<html />")
         >>> len(r.headers.keys())
@@ -140,7 +150,7 @@ class Response:
         True
         """
         for k, v in headers.items():
-            self.headers["-".join((token.capitalize() for token in k.split("-")))] = v
+            self.headers["-".join(token.capitalize() for token in k.split("-"))] = v
 
 
 class Entry(MocketEntry):
@@ -159,7 +169,7 @@ class Entry(MocketEntry):
     request_cls = Request
     response_cls = Response
 
-    def __init__(self, uri, method, responses, match_querystring=True):
+    def __init__(self, uri, method, responses, match_querystring=True) -> None:
         uri = urlsplit(uri)
 
         port = uri.port
@@ -178,16 +188,7 @@ class Entry(MocketEntry):
         self._match_querystring = match_querystring
 
     def __repr__(self):
-        return (
-            "{}(method={!r}, schema={!r}, location={!r}, path={!r}, query={!r})".format(
-                self.__class__.__name__,
-                self.method,
-                self.schema,
-                self.location,
-                self.path,
-                self.query,
-            )
-        )
+        return f"{self.__class__.__name__}(method={self.method!r}, schema={self.schema!r}, location={self.location!r}, path={self.path!r}, query={self.query!r})"
 
     def collect(self, data):
         consume_response = True
@@ -231,7 +232,7 @@ class Entry(MocketEntry):
         return can_handle
 
     @staticmethod
-    def _parse_requestline(line):
+    def _parse_requestline(line: str) -> tuple[str, str, str]:
         """
         http://www.w3.org/Protocols/rfc2616/rfc2616-sec5.html#sec5
 
@@ -252,7 +253,7 @@ class Entry(MocketEntry):
         raise ValueError("Not a Request-Line")
 
     @classmethod
-    def register(cls, method, uri, *responses, **config):
+    def register(cls, method, uri, *responses, **config) -> None:
         if "body" in config or "status" in config:
             raise AttributeError("Did you mean `Entry.single_register(...)`?")
 
@@ -277,7 +278,7 @@ class Entry(MocketEntry):
         headers=None,
         match_querystring=True,
         exception=None,
-    ):
+    ) -> None:
         response = (
             exception
             if exception

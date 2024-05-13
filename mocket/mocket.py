@@ -2,7 +2,6 @@ import collections
 import collections.abc as collections_abc
 import errno
 import hashlib
-import io
 import itertools
 import json
 import os
@@ -192,9 +191,7 @@ class MocketSocket:
         self.kwargs = kwargs
 
     def __str__(self):
-        return "({})(family={} type={} protocol={})".format(
-            self.__class__.__name__, self.family, self.type, self.proto
-        )
+        return f"({self.__class__.__name__})(family={self.family} type={self.type} protocol={self.proto})"
 
     def __enter__(self):
         return self
@@ -353,7 +350,7 @@ class MocketSocket:
             )
             # check if there's already a recorded session dumped to a JSON file
             try:
-                with io.open(path) as f:
+                with open(path) as f:
                     responses = json.load(f)
             # if not, create a new dictionary
             except (FileNotFoundError, JSONDecodeError):
@@ -392,7 +389,7 @@ class MocketSocket:
 
             try:
                 self.true_socket.connect((host, port))
-            except (OSError, socket.error, ValueError):
+            except (OSError, ValueError):
                 # already connected
                 pass
             self.true_socket.sendall(data, *args, **kwargs)
@@ -416,7 +413,7 @@ class MocketSocket:
                 response_dict["request"] = req
                 response_dict["response"] = hexdump(encoded_response)
 
-                with io.open(path, mode="w") as f:
+                with open(path, mode="w") as f:
                     f.write(
                         decode_from_bytes(
                             json.dumps(responses, indent=4, sort_keys=True)
@@ -645,7 +642,7 @@ class MocketEntry:
                 self.responses.append(r)
 
     def __repr__(self):
-        return "{}(location={})".format(self.__class__.__name__, self.location)
+        return f"{self.__class__.__name__}(location={self.location})"
 
     @staticmethod
     def can_handle(data):

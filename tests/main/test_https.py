@@ -1,4 +1,3 @@
-import io
 import json
 import os
 import tempfile
@@ -55,7 +54,7 @@ def test_truesendall_with_recording_https(url_to_mock):
                 Mocket.get_truesocket_recording_dir(),
                 Mocket.get_namespace() + ".json",
             )
-            with io.open(dump_filename) as f:
+            with open(dump_filename) as f:
                 responses = json.load(f)
 
     assert len(responses["httpbin.org"]["443"].keys()) == 1

@@ -1,4 +1,3 @@
-from __future__ import unicode_literals
 
 import io
 import os
@@ -91,7 +90,7 @@ class MocketTestCase(TestCase):
         self.assertEqual(entry.get_response(), encode_to_bytes(""))
 
     def test_raise_exception(self):
-        entry = MocketEntry(("localhost", 8080), [IOError()])
+        entry = MocketEntry(("localhost", 8080), [OSError()])
 
         with self.assertRaises(IOError):
             entry.get_response()
@@ -212,7 +211,7 @@ def two():
 
 @mocketize
 def test_mocketize_with_fixture(two):
-    assert 2 == two
+    assert two == 2
 
 
 @mocketize

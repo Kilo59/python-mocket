@@ -1,8 +1,5 @@
-# -*- coding: utf-8 -*-
 
-from __future__ import unicode_literals
 
-import socket
 from unittest import TestCase
 
 import pytest
@@ -261,7 +258,7 @@ class RedisTestCase(TestCase):
 
     @mocketize
     def test_raise_exception(self):
-        Entry.register_response("INCRBY counter one", socket.error("Mocket rulez!"))
+        Entry.register_response("INCRBY counter one", OSError("Mocket rulez!"))
         self.assertRaises(
             redis.exceptions.ConnectionError, self.rclient.incr, "counter", "one"
         )

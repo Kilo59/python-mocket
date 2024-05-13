@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-import io
 import json
 import os
 import socket
@@ -51,7 +49,7 @@ class TrueHttpEntryTestCase(HttpTestCase):
                     Mocket.get_truesocket_recording_dir(),
                     Mocket.get_namespace() + ".json",
                 )
-                with io.open(dump_filename) as f:
+                with open(dump_filename) as f:
                     responses = json.load(f)
 
         self.assertEqual(len(responses["httpbin.local"]["80"].keys()), 2)
@@ -69,7 +67,7 @@ class TrueHttpEntryTestCase(HttpTestCase):
                     Mocket.get_truesocket_recording_dir(),
                     Mocket.get_namespace() + ".json",
                 )
-                with io.open(dump_filename) as f:
+                with open(dump_filename) as f:
                     responses = json.load(f)
 
         assert len(responses["httpbin.local"]["80"].keys()) == 1
@@ -87,7 +85,7 @@ class TrueHttpEntryTestCase(HttpTestCase):
                     Mocket.get_truesocket_recording_dir(),
                     Mocket.get_namespace() + ".json",
                 )
-                with io.open(dump_filename) as f:
+                with open(dump_filename) as f:
                     responses = json.load(f)
 
         assert len(responses["httpbin.local"]["80"].keys()) == 1
@@ -299,7 +297,7 @@ class HttpEntryTestCase(HttpTestCase):
         for e in range(5):
             u = url.format(e)
             Entry.single_register(Entry.POST, u, body=str(e))
-            request_body = urlencode({"key-{0}".format(e): "value={0}".format(e)})
+            request_body = urlencode({f"key-{e}": f"value={e}"})
             urlopen(u, request_body.encode("utf-8"))
             last_request = Mocket.last_request()
             assert last_request.body == request_body
@@ -316,7 +314,7 @@ class HttpEntryTestCase(HttpTestCase):
         dump_filename = os.path.join(
             Mocket.get_truesocket_recording_dir(), Mocket.get_namespace() + ".json"
         )
-        with io.open(dump_filename) as f:
+        with open(dump_filename) as f:
             responses = json.load(f)
 
         self.assertEqual(len(responses["httpbin.local"]["80"].keys()), 2)
@@ -333,7 +331,7 @@ class HttpEntryTestCase(HttpTestCase):
     @mocketize
     def test_raise_exception(self):
         url = "http://github.com/fluidicon.png"
-        Entry.single_register(Entry.GET, url, exception=socket.error())
+        Entry.single_register(Entry.GET, url, exception=OSError())
         with self.assertRaises(requests.exceptions.ConnectionError):
             requests.get(url)
 

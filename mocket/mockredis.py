@@ -18,10 +18,10 @@ class Redisizer(byte_type):
     @staticmethod
     def tokens(iterable):
         iterable = [encode_to_bytes(x) for x in iterable]
-        return ["*{0}".format(len(iterable)).encode("utf-8")] + list(
+        return [f"*{len(iterable)}".encode()] + list(
             chain(
                 *zip(
-                    ["${0}".format(len(x)).encode("utf-8") for x in iterable], iterable
+                    [f"${len(x)}".encode() for x in iterable], iterable
                 )
             )
         )
@@ -33,7 +33,7 @@ class Redisizer(byte_type):
                 dict: lambda x: b"\r\n".join(
                     Redisizer.tokens(list(chain(*tuple(x.items()))))
                 ),
-                int: lambda x: ":{0}".format(x).encode("utf-8"),
+                int: lambda x: f":{x}".encode(),
                 text_type: lambda x: "${0}\r\n{1}".format(
                     len(x.encode("utf-8")), x
                 ).encode("utf-8"),
